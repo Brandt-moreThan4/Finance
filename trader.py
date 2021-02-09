@@ -14,8 +14,10 @@ df.index = pd.to_datetime(df.index)
 
 TICKERS = ['SBUX', 'CMG', 'TREC', 'MCD', 'AAPL', 'WEN', 'F']
 
+"""Probably add some sort of portfolio class with which just be used to convey info about trader's holdings."""
 
-class Portfolio:
+
+class Trader:
     """Total portfolio which should have positions"""
 
     # pie graph of position percentages
@@ -28,13 +30,14 @@ class Portfolio:
         self.positions = positions
 
     def value(self):
+        """Current portfolio Value"""
         pass
 
     def __repr__(self):
         return str(self.positions)
 
 
-class Security():
+class Security:
     """Class to model a security"""
 
     def __init__(self, ticker: str):
@@ -53,8 +56,10 @@ class Stock(Security):
     """Inherits from Security class"""
 
 
-class Position():
+class Position:
     """Must have """
+    # I think that the below creates class attributed when they are all just instance attributes, but I want to be able
+    # to glance at this class and see the relevant variables that each instance has.
 
     _trade: str
     security: Security
@@ -92,10 +97,4 @@ class Position():
     def __repr__(self):
         return self.security.ticker
 
-
 # def make_trade()
-
-
-# apple = Security('aapl')
-# p = Position(trade='long', quantity=2, enter_date=datetime.datetime.today(),
-#              security=apple)
