@@ -20,7 +20,7 @@ sbux = Stock('sbux')
 
 trade = Position('long', 50, dut, sbux)
 trade.exit_date = exit_dut
-port.positions.append(trade)
+port.current_positions.append(trade)
 
 # print(df[port.positions[0].ticker].loc[port.positions[0].enter_date])
 # print(df[port.positions[0].ticker].loc[port.positions[0].exit_date])
