@@ -1,3 +1,5 @@
+"""This is the meet so far. Defines the core classes that all other programs with be built off of. (I think)"""
+
 import pandas as pd
 from pathlib import Path
 import os
@@ -10,25 +12,33 @@ df.index = pd.to_datetime(df.index)
 
 TICKERS = ['SBUX', 'CMG', 'TREC', 'MCD', 'AAPL', 'WEN', 'F']
 
-"""Probably add some sort of portfolio class with which just be used to convey info about trader's holdings."""
+"""Things to do: 
+Probably add some sort of portfolio class which will just be used to convey info about trader's holdings.
 
+Piegraph of position percentages. And just fun visuals.
 
-# pie graph of position percentages
+Portfolio allocation decisions. How do they close positions."""
 
 
 class Trader:
-    """Total portfolio which should have positions"""
+    """Should prolly put some helpful comments here"""
 
-    def __init__(self, initial_cash=0, positions=[]):
+    # Does weird shit happen if you make the default a list?
+    def __init__(self, initial_cash=0, positions=None, name: str = 'Unidentified'):
         self.cash = initial_cash
-        self.current_positions = positions
+        # Is there a better way to do below?
+        if positions is not None:
+            self.current_positions = positions
+        else:
+            self.current_positions = []
         self.closed_positions: list = []
+        self.name = name
 
     def value(self):
         """Current portfolio Value"""
 
     def __repr__(self):
-        return str(self.current_positions)
+        return f'{self.name};  Cash:{self.cash:,.2f}'
 
 
 class Security:
@@ -100,3 +110,16 @@ class Position:
     def __repr__(self):
         return self.security.ticker
 
+
+class TradingPit:
+    """This is where the traders come to play."""
+
+    trade_dates = pd.read_csv(cd / 'trading_dates.csv')
+    trade_dates = pd.to_datetime(trade_dates['date']).to_numpy()
+
+    def __init__(self, traders=None):
+        """Get that shit started"""
+        if traders is not None:
+            self.traders = traders
+        else:
+            self.traders = []
