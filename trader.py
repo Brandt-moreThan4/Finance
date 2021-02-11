@@ -1,4 +1,4 @@
-"""This is the meet so far. Defines the core classes that all other programs with be built off of. (I think)"""
+"""This is the meat so far. Defines the core classes that all other programs with be built off of. (I think)"""
 
 import pandas as pd
 from pathlib import Path

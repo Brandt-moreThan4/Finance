@@ -4,10 +4,14 @@ import requests
 import time
 import string
 from pathlib import Path
+import pandas as pd
+import os
+
+cd = Path(os.path.curdir)
 
 
 def get_soup(url: str):
-    """Returns beautiful Soup object of the requested page or None if there was trouble somehwere along the way."""
+    """Returns beautiful Soup object of the requested page or None if there was trouble somewhere along the way."""
 
     page_response = get_page_response(url)
     if page_response is not None:
@@ -55,7 +59,7 @@ def get_chrome_driver():
     driver = webdriver.Chrome(driver_path, options=options)
     # except:
     #     print('Something screwed up getting the driver. Make sure chrome is downloaded and the path is correct')
-        # return None
+    # return None
     # else:
     return driver
 
@@ -69,3 +73,27 @@ def time_usage(func):
         return retval
 
     return wrapper
+
+
+def load_ciks(source: str = 'file'):
+    """Returns a pandas dataframe. Contains 3 columns: cik; ticker; name"""
+    if source == 'file':
+        df = pd.read_csv(cd / 'ciks.csv', index_col='index', dtype={'cik': str})
+    elif source == 'sec':
+        url = 'https://www.sec.gov/files/company_tickers.json'
+        df = pd.read_json(url).T
+        df.rename(columns={'cik_str': 'cik', 'title': 'name'})
+    else:
+        Exception('Sorry, that is not a valid data source input')
+    return df
+
+
+def make_url(base_url, components):
+    """Eases the creation of urls"""
+    url = base_url
+
+    # add each base component to the base url
+    for component in components:
+        url += f'/{component}'
+        # url = f'{url}/{component}'
+    return url
