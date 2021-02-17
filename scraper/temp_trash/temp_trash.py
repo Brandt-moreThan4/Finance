@@ -1,15 +1,3 @@
-# https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000092380&type=10-k&dateb=&owner=exclude&count=40&search_text=
-
-"""This is going to be a program to try to scrape info from 10-k's"""
-
-import requests
-import time
-import os
-from pathlib import Path
-
-import scraper.scrapefunctions as sp
-
-cd = Path(os.path.curdir)
 # dicky = sp.load_ciks()
 
 # base_url = r'https://www.sec.gov/Archives/edgar/data'
@@ -36,4 +24,3 @@ cd = Path(os.path.curdir)
 #
 #
 # dicky.to_csv(cd / 'ciks.csv', index_label=)
-print('lol')

@@ -6,6 +6,7 @@ import string
 from pathlib import Path
 import pandas as pd
 import os
+import re
 
 cd = Path(os.path.curdir)
 
@@ -97,3 +98,20 @@ def make_url(base_url, components):
         url += f'/{component}'
         # url = f'{url}/{component}'
     return url
+
+
+def restore_windows_1252_characters(restore_string):
+    """
+        Replace C1 control characters in the Unicode string s by the
+        characters at the corresponding code points in Windows-1252,
+        where possible.
+    """
+
+    def to_windows_1252(match):
+        try:
+            return bytes([ord(match.group(0))]).decode('windows-1252')
+        except UnicodeDecodeError:
+            # No character at the corresponding code point: remove it.
+            return ''
+
+    return re.sub(r'[\u0080-\u0099]', to_windows_1252, restore_string)
