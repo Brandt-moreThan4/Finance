@@ -17,7 +17,7 @@ def get_soup(url: str):
     page_response = get_page_response(url)
     if page_response is not None:
         try:
-            soup = BeautifulSoup(page_response.text)
+            soup = BeautifulSoup(page_response.content, 'lxml')
         except:
             print('Trouble parsing the soup for: {}'.format(url))
             return None
