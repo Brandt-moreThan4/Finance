@@ -4,6 +4,8 @@ Things to do:
 2. refactor everything to make it all better.
 3. update the below to make it more generic. Incorporate not just 10-ks.
 4. Prolly a bunch of other stuff.
+5. I am thinking about saving the excel file in the current directory, loading the data into pd dataframes and then
+    deleting the excel doc after grabbing the info. Better way to do that?
 """
 
 from bs4 import BeautifulSoup
@@ -14,11 +16,13 @@ from pathlib import Path
 import unicodedata
 import re
 import pandas as pd
+import requests
 
 import scraper.scrapefunctions as sp
 
 SEARCH_ROOT = r'https://www.sec.gov/cgi-bin/browse-edgar?'  # Used to build the search url
 SEC_DATA_ROOT = 'https://www.sec.gov/'  # Used to build the 10k report url
+EXCEL_REPORT_ROOT = 'https://www.sec.gov/Archives/edgar/data/'
 cik_df = sp.load_ciks()
 
 
@@ -60,6 +64,17 @@ class Report:
             return cik_df[cik_df.ticker == self.ticker].cik.iloc[0]
         else:
             Exception(f'Sorry, this report must have a ticker to look up the cik number.')
+
+    def get_excel_link(self):
+        """Retrieves the link to the excel document that contains all the financial info. Must have accession number."""
+        if self.accession_number:
+            return f'{EXCEL_REPORT_ROOT}{self.cik}/{self.accession_number.replace("-", "")}/Financial_Report.xlsx'
+        else:
+            Exception('Sorry, you must have the accession_number in order to build the excel_link.')
+
+    def get_excel_response(self):
+        """Get's the response of the excel document link."""
+        return requests.get(self.get_excel_link())
 
     def scrape_index_page(self):
         """Extract info from the report index page. Includes: date of report and the report link."""
@@ -149,7 +164,7 @@ def scoop_reports(tickers, report_count=5) -> dict:
         for entry in report_soups[0:report_count]:
             # Pull out the index link from the xml file
             ten_k = Report(ticker=ticker, report_type='10-k', index_link=entry.find('filing-href').get_text(),
-                           accession_number=entr)
+                           accession_number=entry.find('accession-number').get_text())
             # Get report link and date off of index page
             ten_k.scrape_index_page()
             all_reports[ticker].append(ten_k)
