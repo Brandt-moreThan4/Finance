@@ -1,3 +1,5 @@
+"""This module contains functions that are generally useful in the scraping process."""
+
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import requests
@@ -5,10 +7,6 @@ import time
 import string
 from pathlib import Path
 import pandas as pd
-import os
-import re
-
-cd = Path(os.path.curdir)
 
 
 def get_soup(url: str):
@@ -28,19 +26,8 @@ def get_soup(url: str):
         return None
 
 
-def format_filename(s):
-    """Take a string and return a valid filename constructed from the string.
-    Uses a whitelist approach: any characters not present in valid_chars are
-    removed. Also spaces are replaced with underscores.
-    """
-    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    filename = ''.join(c for c in s if c in valid_chars)
-    filename = filename.replace(' ', '_')  # I don't like spaces in filenames.
-    return filename
-
-
 def get_page_response(url):
-    """Get a page response using the given url"""
+    """Get a page response using the given url. Returns 'None' if there is an issue."""
     try:
         page_response = requests.get(url)
     except:
@@ -51,18 +38,24 @@ def get_page_response(url):
 
 
 def get_chrome_driver():
-    """Returns a selenium driver object to manipulate chrome"""
+    """Returns a selenium driver object to manipulate chrome.. Only works on Brandt's computer."""
 
     driver_path = Path(r'C:\Users\15314\OneDrive\Desktop') / 'chromedriver.exe'
     options = webdriver.chrome.options.Options()
     options.set_headless(headless=True)
-    # try:
     driver = webdriver.Chrome(driver_path, options=options)
-    # except:
-    #     print('Something screwed up getting the driver. Make sure chrome is downloaded and the path is correct')
-    # return None
-    # else:
     return driver
+
+
+def format_filename(s):
+    """Take a string and return a valid filename constructed from the string.
+    Uses a whitelist approach: any characters not present in valid_chars are
+    removed. Also spaces are replaced with underscores.
+    """
+    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
+    filename = ''.join(c for c in s if c in valid_chars)
+    filename = filename.replace(' ', '_')  # I don't like spaces in filenames.
+    return filename
 
 
 def time_usage(func):
@@ -79,7 +72,7 @@ def time_usage(func):
 def load_ciks(source: str = 'file'):
     """Returns a pandas dataframe. Contains 3 columns: cik; ticker; name"""
     if source == 'file':
-        df = pd.read_csv(cd / 'ciks.csv', index_col='index', dtype={'cik': str})
+        df = pd.read_csv(Path().cwd() / 'data' / 'ciks.csv', index_col='index', dtype={'cik': str})
     elif source == 'sec':
         url = 'https://www.sec.gov/files/company_tickers.json'
         df = pd.read_json(url).T
@@ -87,31 +80,3 @@ def load_ciks(source: str = 'file'):
     else:
         Exception('Sorry, that is not a valid data source input')
     return df
-
-
-def make_url(base_url, components):
-    """Eases the creation of urls"""
-    url = base_url
-
-    # add each base component to the base url
-    for component in components:
-        url += f'/{component}'
-        # url = f'{url}/{component}'
-    return url
-
-
-def restore_windows_1252_characters(restore_string):
-    """
-        Replace C1 control characters in the Unicode string s by the
-        characters at the corresponding code points in Windows-1252,
-        where possible.
-    """
-
-    def to_windows_1252(match):
-        try:
-            return bytes([ord(match.group(0))]).decode('windows-1252')
-        except UnicodeDecodeError:
-            # No character at the corresponding code point: remove it.
-            return ''
-
-    return re.sub(r'[\u0080-\u0099]', to_windows_1252, restore_string)

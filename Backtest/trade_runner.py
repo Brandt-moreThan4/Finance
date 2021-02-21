@@ -1,6 +1,6 @@
 """This file is just the play thing to test the code and experiment."""
 
-from trader import *
+from Backtest.trader import *
 
 tp = TradingPit()
 taleb = Trader(initial_cash=1_000_000)

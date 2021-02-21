@@ -1,11 +1,15 @@
-"""Put something here.
+"""This module holdings the 'Report' class and various other classes related to storing and manipulating the data
+    scraped from the sec website.
+
 Things to do:
 1. Figure out why the encoding gets all weird when I try to save the html to a file on my computer
-2. refactor everything to make it all better.
-3. update the below to make it more generic. Incorporate not just 10-ks.
-4. Prolly a bunch of other stuff.
-5. I am thinking about saving the excel file in the current directory, loading the data into pd dataframes and then
-    deleting the excel doc after grabbing the info. Better way to do that?
+2. Refactor everything to make it all better.
+3. Update the below to make it more generic. Incorporate not just 10-ks.
+4. Thing of a better name for this file
+
+Questions:
+ -I am thinking about saving the excel file in the current directory, loading the data into pandas dataframes,
+    and then deleting the excel doc after grabbing the info. Better way to do that?
 """
 
 from bs4 import BeautifulSoup
@@ -22,21 +26,23 @@ import scraper.scrapefunctions as sp
 
 SEARCH_ROOT = r'https://www.sec.gov/cgi-bin/browse-edgar?'  # Used to build the search url
 SEC_DATA_ROOT = 'https://www.sec.gov/'  # Used to build the 10k report url
-EXCEL_REPORT_ROOT = 'https://www.sec.gov/Archives/edgar/data/'
+EXCEL_REPORT_ROOT = 'https://www.sec.gov/Archives/edgar/data/'  # Used to build the excel report url
 cik_df = sp.load_ciks()
 
 
 def build_search_url(cik, action='getcompany', doc_type='', date_before='', count=10, output='atom'):
-    """date_before should be in format of 'YYYYMMDD'
-     If you don't want the output to come as the rss feed then just put output to an empty string
-     Account minimum on the feed is 10
+    """Function used to build the url for searching edgar.
+     -Only necessary input is the cik.
+     -date_before should be in format of 'YYYYMMDD'
+     -If you don't want the output to come as the rss feed then just put 'output' argument to an empty string
+     -Output minimum on the feed is 10 so you will always receive back at least 10 entries.
      """
-    query_string = f'{SEARCH_ROOT}action={action}&CIK={cik}&type={doc_type}&dateb={date_before}&count={count}&output={output}'
-    return query_string
+    query_string = f'action={action}&CIK={cik}&type={doc_type}&dateb={date_before}&count={count}&output={output}'
+    return SEARCH_ROOT + query_string
 
 
 def get_cik(ticker: str):
-    """Returns the cik, or raises an exception if there is no ticker."""
+    """Returns the cik, given a ticker string."""
     return cik_df[cik_df.ticker == ticker].cik.iloc[0]
 
 
@@ -174,17 +180,20 @@ def scoop_reports(tickers, report_count=5) -> dict:
 
 
 def clean_row(row_soup: Tag) -> list:
-    """Send in a list and return a cleaner list. This method is sketchy though and will need refining and testing"""
+    """Send in a list and return a cleaner list. This method is  real sketchy though and will need refining and
+    testing """
     # The goal is to make sure each row only has three columns. The loop should delete any cell that is not an
     # account description or number or hyphen ( which indicates 0 usually)
 
-    # Converts some weird blank strings into normal blank python strings
+    # Below converts some weird blank strings into normal blank python strings
     cols = row_soup.find_all('td')
     row = [unicodedata.normalize("NFKD", col.get_text()) for col in cols]
 
     # Don't get stuck in an infinite loop. Just in case my cleaning doesn't trim everything down enough
+    # This whole function just feels like shitty logic. And only makes sense if you are staying at the html of a 10-k.
+    max_loop_count = 40
     loop_count = 0
-    while len(row) > 3 and loop_count < 40:
+    while len(row) > 3 and loop_count < max_loop_count:
         loop_count += 1
         for col_index, col in enumerate(row):
             if not re.search('[\w-]', col):  # Don't delete a letter, number or hyphen
@@ -194,17 +203,15 @@ def clean_row(row_soup: Tag) -> list:
     return row
 
 
-class FinancialDataTable:
-    """This is the parent class for the specific financial statements and other tables in the reports."""
-
-    def clean_and_extract_data(self, report_soup: BeautifulSoup):
-        pass
-
-
-class BalanceSheet(FinancialDataTable):
+class BalanceSheet:
+    """This class will hold the data relevant to the balance sheet on the 10-k."""
 
     def __init__(self):
-        self.table = None
+        self._data_table = None
+
+    @property
+    def data_table(self) -> pd.DataFrame:
+        return self._data_table
 
     def clean_and_extract_data(self, report_soup: BeautifulSoup):
         bs_table = get_balance_sheet_table(report_soup)
@@ -215,13 +222,18 @@ class BalanceSheet(FinancialDataTable):
         while not any(cleaned_rows[0]):
             cleaned_rows.pop(0)
 
-        self.table = pd.DataFrame(cleaned_rows)
+        self._data_table = pd.DataFrame(cleaned_rows)
 
 
-class IncomeStatement(FinancialDataTable):
+class IncomeStatement:
+    """This class will hold the data relevant to the income statement on the 10-k."""
 
     def __init__(self):
-        self.table = None
+        self._data_table = None
+
+    @property
+    def data_table(self) -> pd.DataFrame:
+        return self._data_table
 
     def clean_and_extract_data(self, report_soup: BeautifulSoup):
         is_table = get_income_statement_table(report_soup)
@@ -232,16 +244,16 @@ class IncomeStatement(FinancialDataTable):
         while not any(cleaned_rows[0]):
             cleaned_rows.pop(0)
 
-        self.table = pd.DataFrame(cleaned_rows)
+        self._data_table = pd.DataFrame(cleaned_rows)
 
 
 def get_income_statement_table(report_soup: BeautifulSoup) -> Tag:
-    """Return is table tag soup"""
+    """Return income statement table tag soup"""
     return report_soup.find(locate_income_statement_table)
 
 
 def get_balance_sheet_table(report_soup: BeautifulSoup) -> Tag:
-    """Returns table that contains the balance sheet"""
+    """Returns table tag that contains the balance sheet"""
 
     return report_soup.find(locate_balance_sheet_table)
 
@@ -267,7 +279,7 @@ def locate_balance_sheet_table(tag: Tag, match_threshold: float = .5) -> bool:
 
 
 def locate_income_statement_table(tag: Tag, match_threshold: float = .5) -> bool:
-    """ Bet"""
+    """Bet"""
     if tag.name == 'table':
         bs_keywords = ['Interest expense', 'NET INCOME', "REVENUES", 'Depreciation', 'DILUTED', 'BASIC', 'TAXES']
         bs_keywords = [keyword.lower() for keyword in bs_keywords]
