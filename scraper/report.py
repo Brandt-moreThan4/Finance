@@ -40,7 +40,7 @@ class Report:
     """This class is used to hold info for a specific report. Right now it is sort of just build for 10-k"""
 
     def __init__(self, ticker, report_type, accession_number=None, index_link=None, report_link=None, report_date=None,
-                 cik=None):
+                 excel_link=None):
 
         self.accession_number = accession_number
         self.index_link = index_link
@@ -48,6 +48,10 @@ class Report:
         self.report_date = report_date
         self.ticker = ticker
         self.report_type = report_type
+        self.excel_link = excel_link
+        # self.balance_sheet = None
+        # self.income_statement = None
+        self.statements = []
 
     @property
     def cik(self):
@@ -90,6 +94,13 @@ class Report:
         """Returns beautiful soup object of the report"""
         report_soup = sp.get_soup(self.report_link)
         return report_soup
+
+    def extract_financial_data(self, statements: tuple):
+        """Pass in statement objects and they will be extracted and put into this report."""
+        report_soup = self.get_report_soup()
+        for statement in statements:
+            statement.clean_and_extract_data(report_soup)
+            self.statements.append(statement)
 
     def __repr__(self):
         # if self.report_date is not None:
@@ -137,7 +148,8 @@ def scoop_reports(tickers, report_count=5) -> dict:
         all_reports[ticker] = []
         for entry in report_soups[0:report_count]:
             # Pull out the index link from the xml file
-            ten_k = Report(ticker=ticker, report_type='10-k', index_link=entry.find('filing-href').get_text())
+            ten_k = Report(ticker=ticker, report_type='10-k', index_link=entry.find('filing-href').get_text(),
+                           accession_number=entr)
             # Get report link and date off of index page
             ten_k.scrape_index_page()
             all_reports[ticker].append(ten_k)
@@ -146,8 +158,76 @@ def scoop_reports(tickers, report_count=5) -> dict:
     return all_reports
 
 
+def clean_row(row_soup: Tag) -> list:
+    """Send in a list and return a cleaner list. This method is sketchy though and will need refining and testing"""
+    # The goal is to make sure each row only has three columns. The loop should delete any cell that is not an
+    # account description or number or hyphen ( which indicates 0 usually)
+
+    # Converts some weird blank strings into normal blank python strings
+    cols = row_soup.find_all('td')
+    row = [unicodedata.normalize("NFKD", col.get_text()) for col in cols]
+
+    # Don't get stuck in an infinite loop. Just in case my cleaning doesn't trim everything down enough
+    loop_count = 0
+    while len(row) > 3 and loop_count < 40:
+        loop_count += 1
+        for col_index, col in enumerate(row):
+            if not re.search('[\w-]', col):  # Don't delete a letter, number or hyphen
+                if col_index != 0:  # Don't delete the cell in the first column. This isn't the best logic
+                    row.pop(col_index)
+                    break
+    return row
+
+
+class FinancialDataTable:
+    """This is the parent class for the specific financial statements and other tables in the reports."""
+
+    def clean_and_extract_data(self, report_soup: BeautifulSoup):
+        pass
+
+
+class BalanceSheet(FinancialDataTable):
+
+    def __init__(self):
+        self.table = None
+
+    def clean_and_extract_data(self, report_soup: BeautifulSoup):
+        bs_table = get_balance_sheet_table(report_soup)
+        table_rows = bs_table.find_all('tr')
+        cleaned_rows = [clean_row(row) for row in table_rows]
+
+        # Delete blank rows at the top
+        while not any(cleaned_rows[0]):
+            cleaned_rows.pop(0)
+
+        self.table = pd.DataFrame(cleaned_rows)
+
+
+class IncomeStatement(FinancialDataTable):
+
+    def __init__(self):
+        self.table = None
+
+    def clean_and_extract_data(self, report_soup: BeautifulSoup):
+        is_table = get_income_statement_table(report_soup)
+        table_rows = is_table.find_all('tr')
+        cleaned_rows = [clean_row(row) for row in table_rows]
+
+        # Delete blank rows at the top
+        while not any(cleaned_rows[0]):
+            cleaned_rows.pop(0)
+
+        self.table = pd.DataFrame(cleaned_rows)
+
+
+def get_income_statement_table(report_soup: BeautifulSoup) -> Tag:
+    """Return is table tag soup"""
+    return report_soup.find(locate_income_statement_table)
+
+
 def get_balance_sheet_table(report_soup: BeautifulSoup) -> Tag:
     """Returns table that contains the balance sheet"""
+
     return report_soup.find(locate_balance_sheet_table)
 
 
@@ -171,39 +251,13 @@ def locate_balance_sheet_table(tag: Tag, match_threshold: float = .5) -> bool:
         return False
 
 
-def clean_row(row_soup: Tag) -> list:
-    """Send in a list and return a cleaner list. This method is sketchy though and will need refining and testing"""
-    # The goal is to make sure each row only has three columns. The loop should delete any cell that is not an account
-    # description or number or hyphen ( which indicates 0 usually)
-
-    # Converts some weird blank strings into normal blank python strings
-    cols = row_soup.find_all('td')
-    row = [unicodedata.normalize("NFKD", col.get_text()) for col in cols]
-
-    # Don't get stuck in an infinite loop. Just in case my cleaning doesn't trim everything down enough
-    loop_count = 0
-    while len(row) > 3 and loop_count < 40:
-        loop_count += 1
-        for col_index, col in enumerate(row):
-            if not re.search('[\w-]', col):  # Don't delete a letter, number or hyphen
-                if col_index != 0:  # Don't delete the cell in the first column. This isn't the best logic
-                    row.pop(col_index)
-                    break
-    return row
-
-
-def clean_and_extract_bs(report_soup: BeautifulSoup) -> pd.DataFrame:
-    """Input a beautiful soup table tag and then returns a pandas data frame of the cleaned balance sheet."""
-
-    # Just pull out each cell in the table and try to eliminate any that are just placeholders so you can extract a
-    # table with equal columns that makes sense.
-
-    bs_table = get_balance_sheet_table(report_soup)
-    table_rows = bs_table.find_all('tr')
-    cleaned_rows = [clean_row(row) for row in table_rows]
-
-    # Delete blank rows at the top
-    while not any(cleaned_rows[0]):
-        cleaned_rows.pop(0)
-
-    return pd.DataFrame(cleaned_rows)
+def locate_income_statement_table(tag: Tag, match_threshold: float = .5) -> bool:
+    """ Bet"""
+    if tag.name == 'table':
+        bs_keywords = ['Interest expense', 'NET INCOME', "REVENUES", 'Depreciation', 'DILUTED', 'BASIC', 'TAXES']
+        bs_keywords = [keyword.lower() for keyword in bs_keywords]
+        tag_text = tag.get_text().lower()
+        matches = [keyword in tag_text for keyword in bs_keywords]
+        return sum(matches) / len(bs_keywords) >= match_threshold
+    else:
+        return False

@@ -1,11 +1,4 @@
 """Things to do:
-1. Figure out why the encoding gets all weird when I try to save the html to a file on my computer
-2. refactor everything to make it all better.
-3. Prolly a bunch of other stuff.
-
-My Idea for locating statements:
-    Use multiple methods to try to locate the html table. If they all agree then boo ya. Otherwise then maybe just don't scrape it?
-    Clean all table data before deciding which one is the correct one?
 """
 
 from pathlib import Path
@@ -20,6 +13,19 @@ TICKERS = ['LUV']
 # This Script should just go through each of the tickers and extract the data from their balance sheets on their
 # two most recent 10-ks and export it to a csv file in the Balance Sheets folder.
 # The bulk of the code is in the 'reports.py' file.
+
+
+url = 'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000092380&type=10-k&dateb=&owner=exclude&count=40&search_text='
+import requests
+
+url = 'https://www.sec.gov/Archives/edgar/data/92380/000009238021000033/Financial_Report.xlsx'
+
+response = requests.get(url, 'shoo.xlsx')
+
+with open('test.xlsx', 'wb') as f:
+    f.write(response.content)
+
+
 
 def main():
     reports = rp.scoop_reports(TICKERS, report_count=1)
