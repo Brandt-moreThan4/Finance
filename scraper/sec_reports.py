@@ -247,6 +247,20 @@ class IncomeStatement:
         self._data_table = pd.DataFrame(cleaned_rows)
 
 
+class CashFlowStatement:
+    """This class will hold the data relevant to the cash flow statement on the 10-k."""
+
+    def __init__(self):
+        self._data_table = None
+
+    @property
+    def data_table(self) -> pd.DataFrame:
+        return self._data_table
+
+    def clean_and_extract_data(self, report_soup: BeautifulSoup):
+        pass
+
+
 def get_income_statement_table(report_soup: BeautifulSoup) -> Tag:
     """Return income statement table tag soup"""
     return report_soup.find(locate_income_statement_table)
