@@ -27,7 +27,7 @@ import scraper.scrapefunctions as sp
 SEARCH_ROOT = r'https://www.sec.gov/cgi-bin/browse-edgar?'  # Used to build the search url
 SEC_DATA_ROOT = 'https://www.sec.gov/'  # Used to build the 10k report url
 EXCEL_REPORT_ROOT = 'https://www.sec.gov/Archives/edgar/data/'  # Used to build the excel report url
-cik_df = sp.load_ciks()
+cik_df: pd.DataFrame = sp.load_ciks()  # load ciks in a panda dataframe for easy lookup later.
 
 
 def build_search_url(cik, action='getcompany', doc_type='', date_before='', count=10, output='atom'):
@@ -49,8 +49,7 @@ def get_cik(ticker: str):
 class Report:
     """This class is used to hold info for a specific report. Right now it is sort of just build for 10-k"""
 
-    def __init__(self, ticker, report_type, accession_number=None, index_link=None, report_link=None, report_date=None,
-                 excel_link=None):
+    def __init__(self, ticker, report_type, accession_number=None, index_link=None, report_link=None, report_date=None):
 
         self.accession_number = accession_number
         self.index_link = index_link
@@ -58,10 +57,17 @@ class Report:
         self.report_date = report_date
         self.ticker = ticker
         self.report_type = report_type
-        self.excel_link = excel_link
-        # self.balance_sheet = None
-        # self.income_statement = None
-        self.statements = []
+
+        self.excel_link = None
+        self.balance_sheet = None
+        self.income_statement = None
+        self.cash_flow_statement = None
+
+    @property
+    def statements(self):
+        """Return a list of the essential statements. Should I make it so that it only returns statements with data?"""
+        statement_dict = [self.balance_sheet, self.income_statement, self.cash_flow_statement]
+        return statement_dict
 
     @property
     def cik(self):
@@ -74,6 +80,7 @@ class Report:
     def get_excel_link(self):
         """Retrieves the link to the excel document that contains all the financial info. Must have accession number."""
         if self.accession_number:
+            # URL link fore the excel document does not have any '-' in it
             return f'{EXCEL_REPORT_ROOT}{self.cik}/{self.accession_number.replace("-", "")}/Financial_Report.xlsx'
         else:
             Exception('Sorry, you must have the accession_number in order to build the excel_link.')
@@ -87,8 +94,7 @@ class Report:
         if self.index_link:
             index_soup = sp.get_soup(self.index_link)
             if index_soup:
-                # Below assuming it will always be the first table. Safe assumption? Probably not. Could use {'class':
-                # 'tableFile'}
+                # Below assuming it will always be the first table. Safe assumption? Probably not, but it hasn't failed.
                 report_table = index_soup.find('table')
                 for row in report_table.find_all('tr'):
                     cols = row.find_all(['th', 'td'])
@@ -98,8 +104,9 @@ class Report:
                     if document_type == self.report_type.lower():
                         document_link = cols[2].find('a')
                         if document_link:
-                            # Get rid of the ix part which would take you to the interactive document
                             document_link = document_link.get('href')
+                            # Get rid of the ix part which would take you to the interactive document
+                            # We just want the raw html
                             document_link = document_link.replace('/ix?doc=/', '')
                             self.report_link = SEC_DATA_ROOT + document_link
                         break
@@ -116,16 +123,53 @@ class Report:
         report_soup = sp.get_soup(self.report_link)
         return report_soup
 
-    def extract_financial_data(self, statements: tuple):
-        """Pass in statement objects and they will be extracted and put into this report."""
+    # def extract_financial_data(self, statements: tuple):
+    #     """Pass in statement objects and they will be extracted and put into this report."""
+    #     report_soup = self.get_report_soup()
+    #     for statement in statements:
+    #         statement.clean_and_extract_data(report_soup)
+    #         self.statements.append(statement)
+
+    def extract_financial_data(self, statements_list: list):
+        """replace above method"""
         report_soup = self.get_report_soup()
-        for statement in statements:
-            statement.clean_and_extract_data(report_soup)
-            self.statements.append(statement)
+        for statement in statements_list:
+            new_statement = statement()
+            new_statement.clean_and_extract_data(report_soup)
+            if statement.__name__ == 'BalanceSheet':
+                self.balance_sheet = new_statement
+            elif statement.__name__ == 'IncomeStatement':
+                self.income_statement = new_statement
+            elif statement.__name__ == 'CashFlowStatement':
+                self.cash_flow_statement = new_statement
 
     def __repr__(self):
         # if self.report_date is not None:
         return f'{self.ticker}: {str(self.report_date)}'
+
+
+def scoop_reports(tickers, report_count=5) -> dict:
+    """Pass in tickers and spit out a dictionary containing reports with tickers as the dictionary key."""
+    # May have to look at the html on edgar's website to really understand some of this.
+
+    all_reports = {}
+    for ticker in tickers:
+        url = SEARCH_ROOT + build_search_url(cik=get_cik(ticker), doc_type='10-k', count=report_count)
+        search_soup = sp.get_soup(url)
+        report_soups = search_soup.find_all('entry')  # There is an entry tag associated with each report
+        report_count = min(report_count, len(report_soups))
+
+        all_reports[ticker] = []
+        for entry in report_soups[0:report_count]:
+            # Pull out the index link from the xml file
+            ten_k = Report(ticker=ticker, report_type='10-k', index_link=entry.find('filing-href').get_text(),
+                           accession_number=entry.find('accession-number').get_text())
+            # Get report link and date off of index page
+            ten_k.scrape_index_page()
+            all_reports[ticker].append(ten_k)
+            time.sleep(.1)  # Small sleep between each url request so that I am not being a dick to edgar's server.
+
+    return all_reports
 
 
 def save_reports(report_dict: dict):
@@ -155,30 +199,6 @@ def save_reports(report_dict: dict):
                 print(f'Uh oh. There was no page response for this url: {ten_k.report_date}')
 
 
-def scoop_reports(tickers, report_count=5) -> dict:
-    """Pass in tickers and spit out a dictionary containing reports with tickers as the dictionary key."""
-    # May have to look at the html on edgar's website to really understand some of this.
-
-    all_reports = {}
-    for ticker in tickers:
-        url = SEARCH_ROOT + build_search_url(cik=get_cik(ticker), doc_type='10-k', count=report_count)
-        search_soup = sp.get_soup(url)
-        report_soups = search_soup.find_all('entry')  # There is an entry tag associated with each report
-        report_count = min(report_count, len(report_soups))
-
-        all_reports[ticker] = []
-        for entry in report_soups[0:report_count]:
-            # Pull out the index link from the xml file
-            ten_k = Report(ticker=ticker, report_type='10-k', index_link=entry.find('filing-href').get_text(),
-                           accession_number=entry.find('accession-number').get_text())
-            # Get report link and date off of index page
-            ten_k.scrape_index_page()
-            all_reports[ticker].append(ten_k)
-            time.sleep(.1)  # Small sleep between each url request so that I am not being a dick to edgar's server.
-
-    return all_reports
-
-
 def clean_row(row_soup: Tag) -> list:
     """Send in a list and return a cleaner list. This method is  real sketchy though and will need refining and
     testing """
@@ -206,6 +226,8 @@ def clean_row(row_soup: Tag) -> list:
 class BalanceSheet:
     """This class will hold the data relevant to the balance sheet on the 10-k."""
 
+    name = 'BalanceSheet'
+
     def __init__(self):
         self._data_table = None
 
@@ -228,6 +250,8 @@ class BalanceSheet:
 class IncomeStatement:
     """This class will hold the data relevant to the income statement on the 10-k."""
 
+    name = 'IncomeStatement'
+
     def __init__(self):
         self._data_table = None
 
@@ -236,6 +260,7 @@ class IncomeStatement:
         return self._data_table
 
     def clean_and_extract_data(self, report_soup: BeautifulSoup):
+        """Note this does not yet work reliably."""
         is_table = get_income_statement_table(report_soup)
         table_rows = is_table.find_all('tr')
         cleaned_rows = [clean_row(row) for row in table_rows]
@@ -250,6 +275,8 @@ class IncomeStatement:
 class CashFlowStatement:
     """This class will hold the data relevant to the cash flow statement on the 10-k."""
 
+    name = 'CashFlowStatement'
+
     def __init__(self):
         self._data_table = None
 
@@ -263,6 +290,7 @@ class CashFlowStatement:
 
 def get_income_statement_table(report_soup: BeautifulSoup) -> Tag:
     """Return income statement table tag soup"""
+    """Note this does not yet work reliably."""
     return report_soup.find(locate_income_statement_table)
 
 
@@ -294,6 +322,7 @@ def locate_balance_sheet_table(tag: Tag, match_threshold: float = .5) -> bool:
 
 def locate_income_statement_table(tag: Tag, match_threshold: float = .5) -> bool:
     """Bet"""
+    """Note this does not yet work reliably."""
     if tag.name == 'table':
         bs_keywords = ['Interest expense', 'NET INCOME', "REVENUES", 'Depreciation', 'DILUTED', 'BASIC', 'TAXES']
         bs_keywords = [keyword.lower() for keyword in bs_keywords]

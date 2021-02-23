@@ -12,7 +12,7 @@ TICKERS = ['LUV', 'SBUX']
 # This script will just pull the full financial statement data from the edgar website into an excel file to put
 # into the folder'excel reports'
 def main():
-    reports = rp.scoop_reports(TICKERS, report_count=2)
+    reports = rp.scoop_reports(TICKERS, report_count=1)
     for ticker in reports:
         for report in reports[ticker]:
             response_content = report.get_excel_response().content
