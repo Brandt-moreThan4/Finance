@@ -1,16 +1,19 @@
-"""This module is just used test and play around with the functionality of the sec_reports file.
+"""Running this script will just get the excel file containing the finanical report info for each of the tickers
+and save it into the 'excel_reports' folder. Not that developed yet, but this could probably be nice as a stand alone
+function for an excel add-in.
 """
 
 from pathlib import Path
 
 import scraper.sec_reports as rp
 
-# TICKERS = ['LUV', 'SBUX', 'CMG', 'TREC', 'MCD', 'AAPL', 'WEN', 'F']
-TICKERS = ['LUV', 'SBUX']
+TICKERS = ['LUV', 'SBUX', 'CMG', 'TREC', 'MCD', 'AAPL', 'WEN', 'F']
+# TICKERS = ['LUV', 'SBUX']
 
 
 # This script will just pull the full financial statement data from the edgar website into an excel file to put
 # into the folder'excel reports'
+
 def main():
     reports = rp.scoop_reports(TICKERS, report_count=1)
     for ticker in reports:

@@ -60,7 +60,7 @@ class Report:
         self.report_type = report_type
 
         # These will never be set on creation
-        self.report_soup = None
+        self.report_soup: BeautifulSoup = None # I know this is weird. I just want type hints.
         self.excel_link = None
         self.balance_sheet = None
         self.income_statement = None
@@ -130,6 +130,8 @@ class Report:
 
     def load_report_soup(self):
         """Store's the report soup in a variable of this instance"""
+        if self.report_link is None:
+            self.scrape_index_page()
         self.report_soup = self.get_report_soup()
 
     def extract_financial_data(self, statements_list: list):
