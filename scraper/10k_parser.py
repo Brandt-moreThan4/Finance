@@ -15,14 +15,7 @@ import pandas as pd
 
 from scraper.parser_settings import *
 import scraper.helper_funcs as hp
-
-
-
-
-
-
-# DATA_FRAME_COLUMNS = ['report_date', 'ticker', 'p_number', 'p_text']
-# DATA_FRAME_COLUMNS.extend(ALL_WORDS)
+import time
 
 
 
@@ -31,29 +24,27 @@ ten_k_reports_dict = rp.scoop_reports(TICKERS, YEARS)
 
 all_text_chunks = []
 master_table = []
+skipped_reports = []
 for ticker, reports in ten_k_reports_dict.items():
     for ten_k in reports:
-        ten_k.load_report_soup()
-        # Get the text from each 'div' element in the 10k's html and convert it to all lower case
-        text_chunks = hp.get_text_chunks(ten_k.report_soup)
-        # text_chunks: list = [div.get_text().lower() for div in ten_k.report_soup.find_all('div')]
-        for paragraph_number, text_chunk in enumerate(text_chunks):
-            paragraph = hp.TextChunk(text_chunk)
-            all_text_chunks.append(paragraph)
-            matches = ';'.join([match.word for match in paragraph.matches])
-            row = [ticker, ten_k.report_date, paragraph_number, matches, paragraph.text, ten_k.report_link]
-            master_table.append(row)
+        if ten_k.report_link is not None: # Ignore reports that don't have links.
+            ten_k.load_report_soup()
+            # time.sleep(.2)
+            text_chunks = hp.get_text_chunks(ten_k.report_soup)
+            for paragraph_number, text_chunk in enumerate(text_chunks):
+                paragraph = hp.TextChunk(text_chunk)
+                all_text_chunks.append(paragraph)
+                matches = ';'.join([match.word for match in paragraph.matches])
+                row = [ticker, ten_k.report_date, paragraph_number, matches, paragraph.text, ten_k.report_link, ten_k.index_link]
+                master_table.append(row)
+        else:
+            skipped_reports.append((ticker, ten_k.report_date, ten_k.report_link))
 
-print('lol')
+print(skipped_reports)
 
 df = pd.DataFrame(master_table)
-DATA_FRAME_COLUMNS = ['ticker', 'report_date', 'paragraph_number', 'matches', 'para_text', 'report_link']
+DATA_FRAME_COLUMNS = ['ticker', 'report_date', 'paragraph_number', 'matches', 'para_text', 'report_link', 'report_index']
 df.columns = DATA_FRAME_COLUMNS
 
 df.to_excel('paragraphs.xlsx')
 print('lol')
-
-# def main():
-
-# if __name__ == '__main__':
-#     main()

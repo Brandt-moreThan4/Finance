@@ -132,19 +132,31 @@ class TextChunk:
         return str(self.matches)
 
 
+def use_divs(report_soup:BeautifulSoup):
+
+    divs = report_soup.find_all('div')
+    paragraphs = report_soup.find_all('p')
+    if len(divs) > len(paragraphs):
+        return True
+    else:
+        return False
+
+
 def get_text_chunks(report_soup: BeautifulSoup):
-    """Send in report soup and hopefully returns a list which will contain all of the paragaphs in the report. """
+    """Send in report soup and hopefully returns a list which will contain all of the paragraphs in the report. """
     # Basically just captures all of the top level div elements excluding the ones that contain table elemenets.
     # First get divs
 
-    divs_soup_list = report_soup.find_all('div')
+    if use_divs(report_soup):
+        element_list = report_soup.find_all('div')
+    else:
+        element_list = report_soup.find_all('p')
+
     text_chunk_soups = []
-    for div_soup in divs_soup_list:
-        table = div_soup.find_parent('table')
-        # print(table)
-        if div_soup.find_parent('table') is None:  # Only add to the list if the soup does not have a table ancestor
-            text_chunk_soups.append(div_soup)
-    text_chunks = [div.get_text().lower() for div in text_chunk_soups]
+    for element in element_list:
+        if element.find_parent('table') is None:  # Only add to the list if the soup does not have a table ancestor
+            text_chunk_soups.append(element)
+    text_chunks = [element.get_text().lower() for element in text_chunk_soups]
 
     return text_chunks
 

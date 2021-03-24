@@ -1,7 +1,7 @@
 # TICKERS = ['LUV', 'SBUX', 'CMG', 'TREC', 'MCD', 'AAPL', 'WEN', 'F']
-# TICKERS = ['LUV', 'AAL', 'DAL']
-TICKERS = ['DAL']
-YEARS = 3
+TICKERS = ['LUV', 'AAL', 'DAL', 'UAL', 'ALK', 'JBLU', 'SBUX', 'CMG', 'TREC', 'MCD', 'AAPL', 'WEN', 'F']
+# TICKERS = ['UAL']
+YEARS = 10
 
 HEDGING_WORDS = ['derivatives', 'futures', 'forwards', 'options', 'hedge', 'spot', 'swap']
 NATION_WORDS = ['China', 'Europe', 'Mexico', 'Canada']

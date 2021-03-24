@@ -22,7 +22,7 @@ def get_soup(url: str):
         else:
             return soup
     else:
-        print('The response object was "None" so there is no point in trying to parse')
+        print(f'The response object was "None" so there is no point in trying to parse for url {url}')
         return None
 
 
