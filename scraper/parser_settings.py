@@ -4,7 +4,7 @@ TICKERS = ['LUV', 'AAL', 'DAL', 'UAL', 'ALK', 'JBLU', 'SBUX', 'CMG', 'TREC', 'MC
 YEARS = 10
 
 HEDGING_WORDS = ['derivatives', 'futures', 'forwards', 'options', 'hedge', 'spot', 'swap']
-NATION_WORDS = ['China', 'Europe', 'Mexico', 'Canada']
+NATION_WORDS = ['china', 'europe', 'mexico', 'canada', 'asia', 'japan', 'india', 'argentina']
 
 OFFSHORE_INTERNAL_INPUT_WORD = ['factory', 'plant', 'facility']
 OFFSHORE_EXTERNAL_INPUT_WORDS = ['supplier', 'vendor', 'subcontract']
